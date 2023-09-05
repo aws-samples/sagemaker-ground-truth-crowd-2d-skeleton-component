@@ -1,0 +1,11 @@
+dist/
+node_modules/
+.idea/
+src/public/*.jpg
+src/public/*.png
+src/public/*.jpeg
+src/tools/iconoirCssPackager/extracted_classes.txt
+src/tools/iconoirCssPackager/iconoir.css
+src/tools/skeletonRigCreator/node_modules
+src/tools/skeletonRigCreator/dist
+src/tools/skeletonRigCreator/src/public/*.jpg
