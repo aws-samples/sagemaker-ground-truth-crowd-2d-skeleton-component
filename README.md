@@ -47,7 +47,9 @@ For detailed instructions on how to use the component from a user's perspective
 see the [USER_GUIDE.md](USER_GUIDE.md).
 
 # Using the component
-Once you have a minified build of the component simply include it in your 
+Once you have a minified build of the component you will need to host the
+`crowd-2d-skeleton.js`. Any sort of web hosting should suffice. Once hosted 
+simply include a script tag with the host location in your 
 [custom worker task template](https://docs.aws.amazon.com/sagemaker/latest/dg/sms-custom-templates-step2.html).
 **Note: at time of writing, ES6 module imports are not supported in Amazon 
 SageMaker Ground Truth custom worker task templates. To enable this we can 
@@ -57,7 +59,7 @@ Example
 ```html
 <script>
   async function load(){
-    const url = "www.example-host.com/crowd-2d-skeleton.js"
+    const url = "www.example-host.com/crowd-2d-skeleton.js" // <-- Change to your hosting location
     const response = await fetch(url);
     const code = await response.text();
     let script = document.createElement('script');
