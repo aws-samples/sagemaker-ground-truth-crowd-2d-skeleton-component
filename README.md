@@ -240,8 +240,46 @@ of colors you can do so by passing an array of colors like so
 ></crowd-2d-skeleton>
 ```
 
-## Data returned when submitted
+# Labeling Job Details
+## Manifest File Examples
+Amazon Ground Truth labeling jobs use input manifest files as job input data.
+These manifest files contain information like which images should be annotated
+and metadata corresponding with a given image. 
 
+What you should include in your manifest file depends on the type of labeling 
+job you would like to do and what your annotation lambdas expect. For example,
+if you are using a pre-annotated workflow your template will expect the 
+`initialValues` attribute to be populated with the annotation data in the format
+described in the attributes section.
+```html
+  <crowd-2d-skeleton
+          imgSrc="{{ task.input.image_s3_uri | grant_read_access }}"
+          keypointClasses='[{"id":"b5b2ffcc-ca3c-4b34-be80-1b42aee9ed52","color":"#1F77B4","label":"nose","x":62,"y":11},{"id":"c37055dd-daba-4cb5-876d-b7f9e63bfa68","color":"#FF7F0E","label":"right_eye","x":52,"y":1},{"id":"3a2613d2-adc5-474b-b91d-6ab3a0d1866e","color":"#D62728","label":"left_eye","x":70,"y":0},{"id":"798ba7bf-245a-49ab-8fab-ab21e6a5fa15","color":"#9467BD","label":"left_ear","x":87,"y":6},{"id":"b2e1baab-de68-4353-8dac-af2d4d05609c","color":"#8C564B","label":"right_ear","x":39,"y":5},{"id":"3b470e38-d4c6-4b26-89c2-cddc38b647d3","color":"#E377C2","label":"right_shoulder","x":17,"y":62},{"id":"cae5e3a0-766c-4678-baf9-7296d7478bfd","color":"#7F7F7F","label":"right_elbow","x":7,"y":141},{"id":"5a2f04e3-1bc8-4648-b155-51fd9fa69a99","color":"#BCBC22","label":"right_wrist","x":0,"y":192},{"id":"b6e4e626-e0e8-4a50-84b1-cb22e667a5aa","color":"#FF9896","label":"left_shoulder","x":107,"y":63},{"id":"a25fc23f-cba6-4df7-b6f1-cc21c2712262","color":"#17BECF","label":"left_elbow","x":120,"y":130},{"id":"94cc2d77-5cf0-4fe0-88ee-7a346f58b250","color":"#AEC7E8","label":"left_wrist","x":124,"y":188},{"id":"c68d1f9a-8285-4e1a-91cc-762c7bf91082","color":"#FFBB78","label":"left_hip","x":95,"y":199},{"id":"6f00a805-e7a1-431d-9cc1-d82b22d12bf9","color":"#98DF8A","label":"left_knee","x":108,"y":306},{"id":"cde80422-077c-4098-80f7-38ea41e76f4d","color":"#C5B0D5","label":"left_ankle","x":103,"y":387},{"id":"c83a2acf-3ced-426a-baad-802b7981408a","color":"#C49C94","label":"right_hip","x":22,"y":200},{"id":"743c9075-0df4-48a4-8d4e-fcd815b96d78","color":"#F7B6D2","label":"right_knee","x":15,"y":307},{"id":"cf196566-6647-40cf-be8b-30c60428fca6","color":"#C7C7C7","label":"right_ankle","x":16,"y":382}]'
+          skeletonRig='[["right_eye","left_eye"],["left_eye","nose"],["nose","right_eye"],["right_eye","right_ear"],["right_ear","right_shoulder"],["right_shoulder","right_elbow"],["right_elbow","right_wrist"],["left_eye","left_ear"],["left_ear","left_shoulder"],["left_shoulder","left_elbow"],["left_elbow","left_wrist"],["left_hip","left_knee"],["left_knee","left_ankle"],["left_hip","right_hip"],["right_hip","right_knee"],["right_knee","right_ankle"],["right_hip","right_shoulder"],["right_shoulder","left_shoulder"],["left_shoulder","left_hip"]]'
+          skeletonBoundingBox='{"left":0,"top":0,"right":124,"bottom":387}'
+          initialValues="{{ task.input.initial_values }}"
+  >
+```
+You can see in this template that the `initialValues` attribute will be populated
+from the `task.input.initial_values` which comes from the returned data from the
+pre-annotation lambda. In this case, lets assume the pre-annotation lambda 
+simply reads these values directly from the manifest file. In this case, your 
+manifest file might look something like:
+```text
+{"source-ref": "s3://<bucket>/<image_key>", "initial_values": "[{"label":"nose","x":356,"y":73}]"}
+```
+And your lambda code would look something like:
+```python
+data_object = event["dataObject"]  # this comes directly from the manifest file
+
+taskInput = {
+    "image_s3_uri": data_object["source-ref"],
+    "initial_values": data_object["initial_values"],
+}
+
+return {"taskInput": taskInput, "humanAnnotationRequired": "true"}
+```
+For more information on manifest files see the docs [here](https://docs.aws.amazon.com/sagemaker/latest/dg/sms-input-data-input-manifest.html).
 
 ## Consolidation / Post Annotation Lambda data
 When the annotator finishes annotating an image they will press the submit button.
