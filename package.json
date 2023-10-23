@@ -4,7 +4,7 @@
   "license": "MIT",
   "homepage": "https://github.com/aws-samples/sagemaker-ground-truth-crowd-2d-skeleton-component",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite src",
