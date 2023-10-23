@@ -16,6 +16,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 import { ICONOIR_CSS } from '../iconoir';
+
 class ToggleIconButton extends HTMLElement {
   constructor () {
     super();
@@ -32,36 +33,25 @@ class ToggleIconButton extends HTMLElement {
     const iconOnTooltip = this.getAttribute('icon-on-tooltip') || null;
     const iconOffTooltip = this.getAttribute('icon-off-tooltip') || null;
 
-    this.startingState = this.getAttribute('starting-state') || true;
+    // Set the initial state based on the 'starting-state' attribute
+    this.state = this.getAttribute('state') === 'true' ||
+        !(this.getAttribute('state') === 'false') || true;
 
-    // Set the initial icon
-    button.innerHTML = `<div class="button" role="button" title="${iconOnTooltip}">
-                        <i  class="icon ${iconOn}"></i>
-                    </div>`;
+    // Set the initial icon based on the initial state
+    button.innerHTML = `
+      <div class="button" role="button" title="${this.state ? iconOnTooltip : iconOffTooltip}">
+        <i class="icon ${this.state ? iconOn : iconOff}"></i>
+      </div>
+    `;
+
+    button.addEventListener('click', () => {
+      this.state = !this.state;
+    });
 
     // Get the size from the attribute or use the default value
     const size = this.getAttribute('size') || '24px';
     button.style.width = size;
     button.style.height = size;
-
-    // Attach event listener to toggle the icon
-    button.addEventListener('click', () => {
-      this.startingState = !this.startingState;
-      if (this.startingState) {
-        // button.innerHTML = `<iron-icon icon="${iconOn}"></iron-icon>`;
-        button.innerHTML = `
-                     <div class="button" role="button" title="${iconOnTooltip}">
-                        <i  class="icon ${iconOn}"></i>
-                    </div>
-                `;
-      } else {
-        button.innerHTML = `
-                     <div class="button" role="button" title="${iconOffTooltip}">
-                        <i  class="icon ${iconOff}"></i>
-                    </div>
-                `;
-      }
-    });
 
     // Apply styling using the shadow DOM
     const style = document.createElement('style');
@@ -74,16 +64,16 @@ class ToggleIconButton extends HTMLElement {
       div {
         cursor: pointer;
         color: rgb(84, 91, 100);
-       display: inline-flex;
-       justify-self: center;
+        display: inline-flex;
+        justify-self: center;
         align-items: center;
         font-size: 10px;
         /* Add more custom styles here */
       }
-      .icon{
-        font-size: ${size}
+      .icon {
+        font-size: ${size};
       }
-      
+
       ${ICONOIR_CSS}
     `;
 
@@ -91,7 +81,54 @@ class ToggleIconButton extends HTMLElement {
     shadow.appendChild(style);
     shadow.appendChild(button);
   }
+
+  // Define a getter and setter for the 'state' attribute
+  get state () {
+    return this.getAttribute('state') === 'true';
+  }
+
+  set state (value) {
+    if (value) {
+      this.setAttribute('state', 'true');
+    } else {
+      this.setAttribute('state', 'false');
+    }
+  }
+
+  // Watch for changes to the 'state' attribute and update the component
+  attributeChangedCallback (name, oldValue, newValue) {
+    if (name === 'state' && oldValue !== newValue) {
+      this.toggleIcon(newValue === 'true');
+    }
+  }
+
+  // Define a method to toggle the icon based on the state
+  toggleIcon (newState) {
+    const iconOn = this.getAttribute('icon-on') || 'iconoir-eye-empty';
+    const iconOff = this.getAttribute('icon-off') || 'iconoir-eye-off';
+    const iconOnTooltip = this.getAttribute('icon-on-tooltip') || null;
+    const iconOffTooltip = this.getAttribute('icon-off-tooltip') || null;
+
+    const button = this.shadowRoot.querySelector('.button');
+    if (newState) {
+      button.innerHTML = `
+        <div class="button" role="button" title="${iconOnTooltip}">
+          <i class="icon ${iconOn}"></i>
+        </div>
+      `;
+    } else {
+      button.innerHTML = `
+        <div class="button" role="button" title="${iconOffTooltip}">
+          <i class="icon ${iconOff}"></i>
+        </div>
+      `;
+    }
+  }
+
+  // Define observed attributes
+  static get observedAttributes () {
+    return ['state'];
+  }
 }
 
-// Define the custom element
 customElements.define('toggle-icon-button', ToggleIconButton);

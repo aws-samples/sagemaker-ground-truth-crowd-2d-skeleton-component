@@ -20,6 +20,7 @@ import { fabric } from 'fabric';
 import './components/collapsableElement';
 import './components/toggleIconButton';
 import './components/toolbarButton.js';
+import './components/toolbarToggleButton.js';
 import Ajv from 'ajv';
 
 import { keypointClassesSchema } from './validationSchemas/keypointClassesSchema';
@@ -328,7 +329,7 @@ template.innerHTML = `
     <div id="canvas-container">
         <canvas id="canvas" width="300" height="300"></canvas>
     </div>
-    <div id="right-panel" class="right-panel">
+    <div id="right-panel" class="right-panel">   
         <div id="skeletons"></div>
         <div class="center">
             <toggle-icon-button id="addSkeletonButton" 
@@ -381,6 +382,13 @@ template.innerHTML = `
         <span class="vertical-line"></span>
         <toolbar-button id="drawNewSkeleton" icon="iconoir-add-frame" hotkey="v" width="28px" tooltip="Draw Skeleton" class="active-toolbar-button"></toolbar-button>
         <toolbar-button id="addSkeleton" icon="iconoir-add-hexagon" hotkey="b" tooltip="Add Skeleton" class="active-toolbar-button"></toolbar-button>
+        <toolbar-toggle-button id="toggleSkeletonsVisibilityButton" 
+                          icon-on="iconoir-eye-empty" 
+                          icon-off="iconoir-eye-off" 
+                          icon-on-tooltip="Hide Active Skeletons"
+                          icon-off-tooltip="Show Active Skeletons"
+                          class="active-toolbar-button"
+                          hotkey="m"></toolbar-toggle-button>
         
         
     </div>
@@ -525,6 +533,19 @@ class Crowd2dSkeleton extends HTMLElement {
     }
   }
 
+  updateSkeletonNamesInSkeletonPanel () {
+    this.skeletonCreationCount = this.skeletons.length;
+    for (let i = 0; i < this.skeletons.length; i++) {
+      const skeleton = this.skeletons[i];
+      const labelText = skeleton.name ? `Skeleton ${i + 1}: ${skeleton.name}` : `Skeleton ${i + 1}`;
+      this.shadowRoot.getElementById(`skeleton-${skeleton.id}-header`).innerText = labelText;
+    }
+  }
+
+  updateAllSkeletonsInSkeletonPannel () {
+
+  }
+
   /**
      *
      * @param {SkeletonState} skeleton
@@ -588,7 +609,7 @@ class Crowd2dSkeleton extends HTMLElement {
                         icon-off="iconoir-eye-off" 
                         icon-on-tooltip="Hide Keypoints"
                         icon-off-tooltip="Show Keypoints"
-                        size="24px" class="list-item-icon" starting-state="${skeleton.showKeypoints}"></toggle-icon-button>
+                        size="24px" class="list-item-icon" state="${skeleton.showKeypoints}"></toggle-icon-button>
                  <toggle-icon-button id="delete-keypoints-${skeleton.id}" 
                         icon-on="iconoir-delete-circle" 
                         icon-off="iconoir-delete-circle"
@@ -635,7 +656,6 @@ class Crowd2dSkeleton extends HTMLElement {
       const visibilityButton = this.shadowRoot.getElementById(`${keypoint.label}-visibility-${skeleton.id}`);
       visibilityButton.onclick = () => {
         keypoint.showKeypoint = !keypoint.showKeypoint;
-        console.time('test1');
         const canvasKeypoint = this.getCanvasKeypointForKeypoint(keypoint, skeleton.id);
 
         if (canvasKeypoint) this.canvas.remove(canvasKeypoint);
@@ -648,7 +668,7 @@ class Crowd2dSkeleton extends HTMLElement {
 
     const visibilityButton = this.shadowRoot.getElementById(`visibility-all-${skeleton.id}`);
     visibilityButton.onclick = () => {
-      skeleton.showKeypoints = !skeleton.showKeypoints;
+      skeleton.showKeypoints = visibilityButton.getAttribute('state') === 'true';
       this.redrawAllItemsForSkeleton(skeleton.id);
     };
 
@@ -660,6 +680,15 @@ class Crowd2dSkeleton extends HTMLElement {
 
   getCanvasKeypoints () {
     return this.canvas.getObjects().filter(object => object instanceof fabric.Circle || object.type === 'circle');
+  }
+
+  getSkeletonVisibilityUIState (skeletonId) {
+    try {
+      const visibilityButton = this.shadowRoot.getElementById(`visibility-all-${skeletonId}`);
+      return visibilityButton.getAttribute('state') === 'true';
+    } catch {
+      return false;
+    }
   }
 
   getCanvasKeypointForKeypoint (keypoint, skeletonId) {
@@ -782,7 +811,7 @@ class Crowd2dSkeleton extends HTMLElement {
       const element = this.shadowRoot.getElementById(`${keypointClass.label}-check-mark-${skeletonId}`);
       if (element) element.classList.add('hidden');
     }
-    this.nextUnmarkedKeypoint();
+    this.firstUnmarkedKeypoint();
 
     this.canvas.forEachObject((object) => {
       if (object.skeletonId === skeletonId) {
@@ -812,13 +841,13 @@ class Crowd2dSkeleton extends HTMLElement {
     this.clearDrawnRigLines();
   }
 
-  redrawAllItemsForSkeleton (skeletonId) {
+  redrawAllItemsForSkeleton (skeletonId, hideSkeletons = false) {
     if (this.delayRendering) return;
     const skeletonsAreGrouped = this.skeletonsAreGrouped;
     this.ungroupSkeletonGroupsInCanvas();
     this.updateKeypointPositionState();
     this.clearDrawnSkeleton(skeletonId);
-    this.drawSkeleton(skeletonId);
+    this.drawSkeleton(skeletonId, hideSkeletons);
     if (skeletonsAreGrouped) {
       this.createSkeletonGroupsInCanvas();
     }
@@ -980,6 +1009,11 @@ class Crowd2dSkeleton extends HTMLElement {
         this.undo();
       } else if (event.key === '.') {
         this.redo();
+      } else if (event.key === 'm') {
+        // This is needed to change the button icon state.
+        const skeletonVisibilityButton = this.shadowRoot.getElementById('toggleSkeletonsVisibilityButton');
+        skeletonVisibilityButton.setAttribute('state', !this.showSkeletons);
+        this.toggleSkeletonsVisibilityButton();
       }
     });
   }
@@ -1009,7 +1043,8 @@ class Crowd2dSkeleton extends HTMLElement {
       addSkeleton: this.addNewSkeleton,
       addSkeletonButton: this.addNewSkeleton,
       redo: this.redo,
-      undo: this.undo
+      undo: this.undo,
+      toggleSkeletonsVisibilityButton: this.toggleSkeletonsVisibilityButton
 
     };
 
@@ -1017,6 +1052,20 @@ class Crowd2dSkeleton extends HTMLElement {
       const element = this.shadowRoot.getElementById(id);
       element.onclick = buttonActionMap[id].bind(this);
     }
+  }
+
+  toggleSkeletonsVisibilityButton () {
+    this.showSkeletons = !this.showSkeletons;
+    this.skeletons.forEach((skeleton) => {
+      const skeletonVisibilityButton = this.shadowRoot.getElementById(`visibility-all-${skeleton.id}`);
+      if (this.showSkeletons) {
+        skeletonVisibilityButton.setAttribute('state', skeleton.showKeypoints);
+        this.redrawAllItemsForSkeleton(skeleton.id, false);
+      } else {
+        skeletonVisibilityButton.setAttribute('state', false);
+        this.redrawAllItemsForSkeleton(skeleton.id, true);
+      }
+    });
   }
 
   addNewSkeleton () {
@@ -1211,6 +1260,7 @@ class Crowd2dSkeleton extends HTMLElement {
         // Pan the canvas if panning is enabled
         if (this.isPanning) {
           this.canvas.setCursor('grabbing');
+
           const deltaX = event.clientX - this.lastPosX;
           const deltaY = event.clientY - this.lastPosY;
 
@@ -1239,15 +1289,26 @@ class Crowd2dSkeleton extends HTMLElement {
         const zoomPoint = new fabric.Point(pointer.x, pointer.y);
 
         // Adjust zoom level based on mousewheel delta
+        let zoomNeedsAdjusted = false;
         if (delta > 0) {
-          this.zoomLevel = this.canvas.getZoom() / 1.1;
+          const zoom = this.canvas.getZoom() / 1.1;
+          if (zoom >= this.maxZoomOut || isNull(this.maxZoomOut)) {
+            this.zoomLevel = this.canvas.getZoom() / 1.1;
+            zoomNeedsAdjusted = true;
+          }
         } else {
-          this.zoomLevel = this.canvas.getZoom() * 1.1;
+          const zoom = this.zoomLevel = this.canvas.getZoom() * 1.1;
+          if (zoom <= this.maxZoomIn || isNull(this.maxZoomIn)) {
+            this.zoomLevel = this.canvas.getZoom() * 1.1;
+            zoomNeedsAdjusted = true;
+          }
         }
 
         // Apply zoom to the canvas
-        this.canvas.zoomToPoint(zoomPoint, this.zoomLevel);
-        this.canvas.requestRenderAll();
+        if (zoomNeedsAdjusted) {
+          this.canvas.zoomToPoint(zoomPoint, this.zoomLevel);
+          this.canvas.requestRenderAll();
+        }
 
         event.preventDefault();
         event.stopPropagation();
@@ -1640,6 +1701,8 @@ class Crowd2dSkeleton extends HTMLElement {
       this.setActivateSkeleton(this.skeletonIndex);
     }
 
+    this.updateSkeletonNamesInSkeletonPanel();
+
     this.canvas.requestRenderAll();
   }
 
@@ -1846,6 +1909,7 @@ class Crowd2dSkeleton extends HTMLElement {
     this.showShortcuts = false;
     this.showRightPanel = true;
     this.showRightPanelSettings = false;
+    this.showSkeletons = true;
     this.keypointIndex = 0;
     this.lineWidth = defaultLineSize;
     this.drawObjectWidth = defaultKeypointSize;
@@ -1861,6 +1925,8 @@ class Crowd2dSkeleton extends HTMLElement {
     this.zoomLevel = this.zoomLevel || 1;
     this.originalZoomLevel = this.zoomLevel;
     this.zoomSensitivity = 0.3;
+    this.maxZoomIn = null;
+    this.maxZoomOut = null;
 
     // Track panning variables
     this.mouseDown = false;
@@ -1969,6 +2035,20 @@ class Crowd2dSkeleton extends HTMLElement {
         this.img = img;
 
         img.hoverCursor = 'default';
+
+        this.maxZoomIn = (Math.max(img.width, img.height) * 2) / 100;
+        const ratio = Math.max(
+          this.getCanvasContainerWidth() / this.imageNaturalWidth,
+          this.getCanvasContainerHeight() / this.imageNaturalHeight
+        );
+        if (ratio > 1) {
+          this.maxZoomOut = 0.5;
+        } else {
+          this.maxZoomOut = Math.max(
+            this.getCanvasContainerWidth() / this.imageNaturalWidth,
+            this.getCanvasContainerHeight() / this.imageNaturalHeight
+          ) / 2;
+        }
 
         img.set({
           scaleX: this.imageScale,
@@ -2125,13 +2205,16 @@ class Crowd2dSkeleton extends HTMLElement {
     }
   }
 
-  drawKeypoint (keypoint, skeleton, updateRigLines = true) {
+  drawKeypoint (keypoint, skeleton, updateRigLines = true, hideSkeleton = false) {
     if (!this.img || this.delayRendering) return;
 
     const skeletonId = skeleton.id;
     const editable = skeleton.editable;
-
-    if (keypoint.hasXY && keypoint.showKeypoint && skeleton.showKeypoints) {
+    if (keypoint.hasXY &&
+        keypoint.showKeypoint &&
+        skeleton.showKeypoints &&
+        (this.showSkeletons || this.getSkeletonVisibilityUIState(skeletonId))
+    ) {
       const points = this.canvas.getObjects().filter(obj => {
         return obj.keypointClassName === keypoint.label && obj.skeletonId === skeletonId;
       });
@@ -2191,14 +2274,14 @@ class Crowd2dSkeleton extends HTMLElement {
     }
   }
 
-  drawSkeleton (skeletonId) {
+  drawSkeleton (skeletonId, hideSkeleton = false) {
     if (this.delayRendering) return;
 
     for (let i = 0; i < this.skeletons.length; i++) {
       const skeleton = this.skeletons[i];
       if (skeletonId !== skeleton.id) continue;
       for (const keypoint of skeleton.keypoints) {
-        this.drawKeypoint(keypoint, skeleton, false);
+        this.drawKeypoint(keypoint, skeleton, false, hideSkeleton);
         this._updateKeypointExistsUiState(keypoint, skeleton);
       }
       break;
@@ -2528,15 +2611,18 @@ class Crowd2dSkeleton extends HTMLElement {
 
   zoomIn () {
     const zoom = this.canvas.getZoom() * 1.1;
-    this.canvas.setZoom(zoom);
-    this.canvas.requestRenderAll();
+    if (zoom <= this.maxZoomIn || isNull(this.maxZoomIn)) {
+      this.canvas.setZoom(zoom);
+      this.canvas.requestRenderAll();
+    }
   }
 
   zoomOut () {
     const zoom = this.canvas.getZoom() / 1.1;
-    this.canvas.setZoom(zoom);
-
-    this.canvas.requestRenderAll();
+    if (zoom >= this.maxZoomOut || isNull(this.maxZoomOut)) {
+      this.canvas.setZoom(zoom);
+      this.canvas.requestRenderAll();
+    }
   }
 }
 
