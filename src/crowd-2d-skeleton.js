@@ -33,7 +33,7 @@ import {
   uniqueSkeletonColorsSchema
 } from './validationSchemas/uniqueSkeletonColorsSchema';
 import { KeypointState } from './keypointState';
-import { SkeletonState } from './SkeletonState';
+import { SkeletonState } from './skeletonState';
 import { isNil, isEmpty, isNull, isEqual, get, last, isArray } from 'lodash';
 import { COLORS, KEYPOINT_HOTKEYS, KEYPOINT_DRAW_STYLES } from './constants';
 
