@@ -20,7 +20,7 @@
     "eslint-plugin-import": "*",
     "eslint-plugin-n": "*",
     "eslint-plugin-promise": "*",
-    "vite": "^4.5.5",
+    "vite": "^5.4.21",
     "vite-plugin-banner": "^0.7.0"
   },
   "dependencies": {
